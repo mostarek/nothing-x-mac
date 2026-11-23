@@ -136,7 +136,17 @@ async function main() {
   equalizer = window.createEqualizer({ api: nx, views, symbols });
 
   render(device);
-  nx.onDeviceState(render);
+  // Coalesce bursts of state changes (start-up reads, retries) into one
+  // repaint per frame.
+  let queued = null;
+  nx.onDeviceState((state) => {
+    if (!queued) requestAnimationFrame(() => {
+      const next = queued;
+      queued = null;
+      render(next);
+    });
+    queued = state;
+  });
 
   $('#noise-options').addEventListener('click', (e) => {
     const btn = e.target.closest('.option');
